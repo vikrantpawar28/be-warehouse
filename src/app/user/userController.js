@@ -7,7 +7,6 @@ const Hub = require("../hub/hubModel");
 const Region = require("../region/regionModel");
 const { JWT_SECRET } = require("../../shared/middleware/authMiddleware");
 
-// Password complexity: 8+ chars and at least one number
 const validatePassword = (password) => {
   if (!password || password.length < 8) {
     return "Password must contain at least 8 characters.";
@@ -18,9 +17,7 @@ const validatePassword = (password) => {
   return null;
 };
 
-// =========================================================================
-// 1. LOGIN API
-// =========================================================================
+
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -133,9 +130,7 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 2. CREATE USER (Screen 2: Create a User)
-// =========================================================================
+
 exports.createUser = async (req, res) => {
   try {
     const {
@@ -145,12 +140,14 @@ exports.createUser = async (req, res) => {
       email,
       password,
       phone,
+      contactNumber,
       profilePhoto,
       roleId,
       hubId,
       regionId,
     } = req.body;
 
+    const userPhone = phone || contactNumber;
     let fName = firstName;
     let lName = lastName;
 
@@ -214,13 +211,31 @@ exports.createUser = async (req, res) => {
       }
     }
 
-    // Auto-resolve regionId from hub if hub is supplied without region
-    if (finalHubId && !finalRegionId) {
+    // Validate Hub exists if hubId is provided
+    if (finalHubId) {
       const hub = await Hub.findByPk(finalHubId);
-      if (hub && hub.regionId) {
+      if (!hub) {
+        return res.status(404).json({
+          success: false,
+          message: `Hub with id ${finalHubId} does not exist. Please create the hub first, or pass "hubId": null.`,
+        });
+      }
+      if (!finalRegionId && hub.regionId) {
         finalRegionId = hub.regionId;
       }
     }
+
+    // Validate Region exists if regionId is provided
+    if (finalRegionId) {
+      const region = await Region.findByPk(finalRegionId);
+      if (!region) {
+        return res.status(404).json({
+          success: false,
+          message: `Region with id ${finalRegionId} does not exist.`,
+        });
+      }
+    }
+
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -229,7 +244,7 @@ exports.createUser = async (req, res) => {
       lastName: lName.trim(),
       email: cleanEmail,
       password: hashedPassword,
-      phone: phone ? String(phone).trim() : null,
+      phone: userPhone ? String(userPhone).trim() : null,
       profilePhoto: profilePhoto || null,
       roleId,
       hubId: finalHubId,
@@ -256,9 +271,7 @@ exports.createUser = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 3. GET ALL USERS (Screen 1: Table with Search, Filter & Date Range)
-// =========================================================================
+
 exports.getAllUsers = async (req, res) => {
   try {
     const {
@@ -372,9 +385,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 4. GET USER BY ID
-// =========================================================================
+
 exports.getUserById = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -420,9 +431,7 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 5. UPDATE USER
-// =========================================================================
+
 exports.updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -493,43 +502,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 6. TOGGLE USER STATUS (Screen 1 Toggle Switch)
-// =========================================================================
-exports.toggleUserStatus = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { status } = req.body; // e.g. "ACTIVE" or "INACTIVE"
-
-    const validStatuses = ["ACTIVE", "INACTIVE", "SUSPENDED"];
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
-      });
-    }
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    user.status = status;
-    await user.save();
-
-    return res.status(200).json({
-      success: true,
-      message: `User status changed to ${status}`,
-      data: { userId: user.userId, status: user.status },
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// =========================================================================
-// 7. DELETE USER
-// =========================================================================
 exports.deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -552,9 +524,7 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// =========================================================================
-// 8. EXPORT USERS (Screen 1 Download Button)
-// =========================================================================
+
 exports.exportUsers = async (req, res) => {
   try {
     const { search = "", status, roleId, hubId, regionId, startDate, endDate } = req.body;
@@ -619,3 +589,95 @@ exports.exportUsers = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+exports.getUserPermissions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Role,
+          as: "role",
+          include: [
+            {
+              model: Permission,
+              as: "permissions",
+              attributes: ["permissionId", "permissionCode"],
+              through: { attributes: [] },
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const assignedPermissionIds = (user.role?.permissions || []).map((p) => p.permissionId);
+    const assignedPermissionCodes = (user.role?.permissions || []).map((p) => p.permissionCode);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        userId: user.userId,
+        fullName: user.fullName,
+        roleId: user.roleId,
+        roleName: user.role?.roleName,
+        roleCode: user.role?.roleCode,
+        assignedPermissionIds,
+        assignedPermissionCodes,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+exports.assignUserPermissions = async (req, res) => {
+  const sequelize = require("../../config/dbConnection");
+  const { RolePermission } = require("../role/roleModel");
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { userId } = req.params;
+    const { permissionIds = [] } = req.body;
+
+    const user = await User.findByPk(userId, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (!user.roleId) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: "User has no role assigned" });
+    }
+
+    // Update the role permissions
+    await RolePermission.destroy({ where: { roleId: user.roleId }, transaction });
+
+    if (Array.isArray(permissionIds) && permissionIds.length > 0) {
+      const records = permissionIds.map((pId) => ({
+        roleId: user.roleId,
+        permissionId: pId,
+      }));
+      await RolePermission.bulkCreate(records, { transaction });
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: `Permissions updated successfully for user ${user.fullName}`,
+      assignedCount: permissionIds.length,
+    });
+  } catch (error) {
+    await transaction.rollback();
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

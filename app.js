@@ -64,12 +64,12 @@ app.get("/", (req, res) => {
 try {
   require("./src/config/routeRegistry")(app);
 } catch (error) {
-  // Routes/controllers/models are under development
+  console.error("Error loading route registry:", error);
 }
 
-app.use("/videos", express.static(path.join(__dirname, "Public/videos")));
-app.use("/image", express.static(path.join(__dirname, "Public/image")));
-app.use("/Public", express.static(path.join(__dirname, "Public")));
+app.use(express.static("public"));
+app.use("/profileImage", express.static(path.join(__dirname, "public/profileImage")));
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 sequelize
   .authenticate()

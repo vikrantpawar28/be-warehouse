@@ -11,8 +11,6 @@ Hub.init(
       primaryKey: true,
     },
 
-   
-
     hubName: {
       type: DataTypes.STRING,
       allowNull: false,

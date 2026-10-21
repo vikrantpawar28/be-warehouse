@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 
-const JWT_SECRET = process.env.JWT_SECRET || "warehouse_super_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -55,7 +55,7 @@ const applyLocationScope = (req, baseWhere = {}) => {
 
   // 1. SuperAdmin: Sees all hubs/regions (unless they explicitly pass a filter in UI)
   if (user.isSuperAdmin || user.roleCode === "SUPER_ADMIN") {
-    if (req.headers["x-hub-id"]) {
+    if (req.headers && req.headers["x-hub-id"]) {
       baseWhere.hubId = req.headers["x-hub-id"];
     }
     return baseWhere;

@@ -9,7 +9,7 @@ const {
 } = require("./hubController");
 
 router.post("/createHub", createHub);
-router.get("/getAllHubs", getAllHubs);
+router.post("/getAllHubs", getAllHubs);
 router.get("/getHubById/:id", getHubById);
 router.put("/updateHubById/:id", updateHub);
 router.delete("/deleteHubById/:id", deleteHub);

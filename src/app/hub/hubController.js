@@ -7,15 +7,15 @@ exports.createHub = async (req, res) => {
     const hub = await Hub.create(req.body);
 
     // Return with parent region data
-    const createdWithRegion = await Hub.findByPk(hub.hubId, {
-      include: [
-        {
-          model: Region,
-          as: "region",
-          attributes: ["regionId", "regionName", "regionCode"],
-        },
-      ],
-    });
+    // const createdWithRegion = await Hub.findByPk(hub.hubId, {
+    //   include: [
+    //     {
+    //       model: Region,
+    //       as: "region",
+    //       attributes: ["regionId", "regionName", "regionCode"],
+    //     },
+    //   ],
+    // });
 
     return res.status(201).json({
       success: true,
@@ -41,20 +41,20 @@ exports.getAllHubs = async (req, res) => {
   try {
     const {
       search,
-      regionId,
+      // regionId,
       hubType,
       city,
       state,
       isActive,
       page = 1,
       limit = 10,
-    } = req.query;
+    } = req.body;
 
     const where = {};
 
-    if (regionId) {
-      where.regionId = regionId;
-    }
+    // if (regionId) {
+    //   where.regionId = regionId;
+    // }
 
     if (hubType) {
       where.hubType = { [Op.iLike]: `%${hubType}%` };
@@ -90,13 +90,13 @@ exports.getAllHubs = async (req, res) => {
 
     const { count, rows } = await Hub.findAndCountAll({
       where,
-      include: [
-        {
-          model: Region,
-          as: "region",
-          attributes: ["regionId", "regionName", "regionCode", "state", "country"],
-        },
-      ],
+      // include: [
+      //   {
+      //     model: Region,
+      //     as: "region",
+      //     attributes: ["regionId", "regionName", "regionCode", "state", "country"],
+      //   },
+      // ],
       order: [["createdAt", "DESC"]],
       limit: limitNum,
       offset,
@@ -132,12 +132,7 @@ exports.getHubById = async (req, res) => {
     const { id } = req.params;
 
     const hub = await Hub.findByPk(id, {
-      include: [
-        {
-          model: Region,
-          as: "region",
-        },
-      ],
+     
     });
 
     if (!hub) {
@@ -176,13 +171,7 @@ exports.updateHub = async (req, res) => {
     await hub.update(req.body);
 
     const updatedWithRegion = await Hub.findByPk(id, {
-      include: [
-        {
-          model: Region,
-          as: "region",
-          attributes: ["regionId", "regionName", "regionCode"],
-        },
-      ],
+     
     });
 
     return res.status(200).json({
@@ -205,37 +194,37 @@ exports.updateHub = async (req, res) => {
   }
 };
 
-exports.toggleHubStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isActive } = req.body;
+// exports.toggleHubStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { isActive } = req.body;
 
-    const hub = await Hub.findByPk(id);
-    if (!hub) {
-      return res.status(404).json({
-        success: false,
-        message: `Hub with id ${id} not found`,
-      });
-    }
+//     const hub = await Hub.findByPk(id);
+//     if (!hub) {
+//       return res.status(404).json({
+//         success: false,
+//         message: `Hub with id ${id} not found`,
+//       });
+//     }
 
-    hub.isActive = isActive !== undefined ? Boolean(isActive) : !hub.isActive;
-    if (req.user?.userId) hub.updatedBy = req.user.userId;
+//     hub.isActive = isActive !== undefined ? Boolean(isActive) : !hub.isActive;
+//     if (req.user?.userId) hub.updatedBy = req.user.userId;
 
-    await hub.save();
+//     await hub.save();
 
-    return res.status(200).json({
-      success: true,
-      message: `Hub marked as ${hub.isActive ? "Active" : "Inactive"}`,
-      data: hub,
-    });
-  } catch (error) {
-    console.error("toggleHubStatus error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Internal server error while toggling hub status",
-    });
-  }
-};
+//     return res.status(200).json({
+//       success: true,
+//       message: `Hub marked as ${hub.isActive ? "Active" : "Inactive"}`,
+//       data: hub,
+//     });
+//   } catch (error) {
+//     console.error("toggleHubStatus error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message || "Internal server error while toggling hub status",
+//     });
+//   }
+// };
 
 exports.deleteHub = async (req, res) => {
   try {
