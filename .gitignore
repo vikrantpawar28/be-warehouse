@@ -1,0 +1,10 @@
+/node_modules
+/Public
+/logs/*.log
+server_startup_check.log
+npm-debug.log*
+yarn-error.log
+.DS_Store
+/.claude
+
+.env
